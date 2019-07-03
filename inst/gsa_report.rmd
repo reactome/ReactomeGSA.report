@@ -1,0 +1,332 @@
+---
+title: "Reactome Analysis Result"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+params:
+  result: "None"
+output:
+  pdf_document:
+    toc: false
+    toc_depth: 2
+    number_sections: false
+    includes:
+      in_header: "preamble.tex"
+    keep_tex: false
+    latex_engine: xelatex
+subparagraph: yes
+classoption: twocolumn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, error = FALSE, fig.pos = 'H', fig.align = "center")
+library(ReactomeGSA)
+suppressPackageStartupMessages( library(ggplot2) )
+library(cowplot)
+
+min_p <- 0.05
+
+result <- params$result
+
+if (class(result) == "character") {
+  result <- readRDS("../test_result.rds")
+}
+
+pathway_result <- pathways(result, p = min_p)
+n_datasets <- length(names(result))
+
+my_colors <- c("#00A0B0", "#6A4A3C", "#CC333F", "#EB6841", "#EDC951")
+my_colors_light <- c("#A1E5ED", "#C49D8C", "#EB9EA5", "#F8AE97", "#F6E4A8")
+
+# theme for all figures
+my_theme <- function(base_size = 12, base_family = "", flip_axis = F) {
+    flip_axis_theme <- theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    res <- theme_bw(base_size=base_size, base_family=base_family) %+replace% 
+    theme(strip.background = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(), 
+          axis.line = element_line(colour = "#333333")
+    )
+    
+    if (flip_axis) {
+        res <- res + flip_axis_theme
+    }
+    
+    return(res)
+}
+```
+
+# Introduction
+
+This report summarizes the pathway analysis result created by the **Reactome Analysis Service**. For more information, visit
+https://www.reactome.org.
+
+In this reports, pathways found differentially expressed at an adjusted p-values <= `r cat(min_p)` are considered to be significantly regulated.
+
+# Analysis Overview
+
+Number of datasets analysed: **`r length(names(result))`**
+
+```{r, results="asis"}
+for (dataset_name in names(result)) {
+  cat("**", dataset_name, ":**\n", sep = "")
+  cat("\n  * ", nrow(get_result(result, "pathways", dataset_name)), " pathways\n", sep = "")
+  
+  if ("fold_changes" %in% result_types(result)) {
+    cat("\n  * ", nrow(get_result(result, "fold_changes", dataset_name)), " fold changes for genes / proteins\n", sep = "")
+  }
+  
+  cat("\n")
+}
+```
+
+```{r significant_pathways_text, results="asis"}
+if (n_datasets > 1) {
+  cat("Number of datasets the different pathways were found to be significantly regulated in:\n\n")
+}
+```
+
+```{r significant_pathways, fig.height=2, fig.width=4, fig.align='center'}
+if (n_datasets > 1) {
+  # count the number of pathways significant for the different dataset combinations
+  significant_in = rowSums(pathway_result[, grep("sig\\.", colnames(pathway_result))])
+  plot_data <- data.frame(
+    pathway = names(significant_in),
+    sig_datasets = as.numeric(significant_in)
+  )
+  
+  ggplot(plot_data[plot_data$sig_datasets > 0, ], aes(x = sig_datasets)) +
+    geom_bar(fill = my_colors[1]) +
+    scale_x_continuous(breaks = 1:max(plot_data$sig_datasets, na.rm = T)) +
+    labs(x = "Datasets with significant regulation", y = "Number of pathways") + 
+    my_theme()
+}
+```
+
+# Pathway analysis
+
+```{r figure_sizes, include=FALSE}
+# number of rows and columns for a 4-panelled figure
+n_4_cols <- n_datasets %% 4
+if (n_4_cols == 0) n_4_cols <- 4
+n_4_rows <- ceiling(n_datasets / 4)
+
+# number of rows and columns for a 3-panelled figure
+n_3_cols <- n_datasets %% 3
+if (n_3_cols == 0) n_3_cols <- 3
+n_3_rows <- ceiling(n_datasets / 3)
+
+# number of rows and columns for a 2-panelled figure
+n_2_cols <- n_datasets %% 2
+if (n_2_cols == 0) n_2_cols <- 2
+n_2_rows <- ceiling(n_datasets / 2)
+```
+
+```{r pathway_volcano, fig.width=n_2_cols*3, fig.height=n_2_rows*3}
+library(ggplot2)
+plot_objs <- list()
+
+for (dataset_name in names(result)) {
+  plot_obj <- plot_volcano(result, dataset = dataset_name)
+  plot_objs[[length(plot_objs) + 1]] <- plot_obj
+}
+
+plot_grid(plotlist = plot_objs, ncol = 2)
+```
+
+These volcano plots summarize the pathway results for every dataset. Every point is one pathway. The x-axis represents the average fold-change of all genes / proteins within that pathway. The y-axis represents the p-value where "higher" values are more significant (-log10 transformation). The red line represents p = 0.05, and the blue line p = 0.01.
+
+```{r pathway_correlation_test, results="asis"}
+if (n_datasets > 1) {
+  cat("## Pathway correlation\n\n")
+  cat("Correlation between all datasets (if more than one). Every point represents one pathway, with the x-axis showing the average fold-change of one dataset and the y-axis the average fold-change of the other dataset. Only pathways that were observed in both datasets are shown. Points are colored based on the lowest observed significance.\n\n")
+} else {
+  cat("\\notebox{Since this result only contains a single datasets, some analyses are not included in this report.}\n\n")
+}
+```
+
+```{r pathway_correlation, fig.width=5, fig.height=3}
+if (n_datasets > 1) {
+  plot_objs <- plot_correlations(result)
+  
+  for (plot_obj in plot_objs) {
+    print(plot_obj + my_theme())
+  }
+}
+```
+
+\onecolumn
+
+```{r direction_of_regulation, results="asis"}
+
+# add function to extract a specific field across all datasets
+pathway_field_string <- function(pathway, field, do_round = F, sig_bold = T, hide_low_p = T) {
+  if (!pathway %in% rownames(pathway_result)) {
+    stop("Error: No information available for ", pathway)
+  }
+  
+  regulations <- c()
+  
+  for (dataset_name in names(result)) {
+    value <- as.character( pathway_result[pathway, paste0(field, dataset_name)] )
+    
+    # check if the value is defined at all
+    if (is.na(value)) {
+      regulations <- c(regulations, "")
+      next
+    }
+    
+    if (do_round) {
+      value <- round(as.numeric(value), 3)
+      
+      if (value < 0.001 && hide_low_p) {
+        value <- "< 0.001"
+      }
+    }
+    
+    # make bold if significant
+    if (sig_bold && pathway_result[pathway, paste0("sig.", dataset_name)]) {
+      value <- paste0("\\textbf{", value, "}")
+    }
+  
+    regulations <- c(regulations, value)
+  }
+  
+  return(paste(regulations, collapse = " & "))
+}
+
+# create a table with the details of every pathway in the list
+create_pathway_table <- function(pathways) {
+  n_datasets <- length(names(result))
+
+  for (pathway in pathways) {
+    cat("\\textbf{", pathway_result[pathway, "Name"], " (", pathway, ")} \n", sep = "")
+    
+    cat("\\begin{tabular}{ l", rep(" | c", n_datasets), " }\n")
+    cat(" & ", paste(names(result), collapse = " & "), "\\\\\n")
+    cat("\\hline\n")
+    cat("Regulation & ", pathway_field_string(pathway, "Direction."), "\\\\\n")
+    cat("FDR & ", pathway_field_string(pathway, "FDR.", T), "\\\\\n")
+    cat("Av. FC & ", pathway_field_string(pathway, "av_foldchange.", do_round = T, hide_low_p = F, sig_bold = F), "\\\\\n")
+    cat("N Genes & ", pathway_field_string(pathway, "NGenes.", F, F), "\\\\\n")
+    
+    
+    cat("\\end{tabular}\n\n")
+    cat("\\textcolor{myyellow}{\\rule{\\columnwidth}{0.3pt}}\n\n")
+    
+    cat("\n")
+  }
+}
+
+# get the list of top pathways / separately for up- and down-regulated ones
+top_n <- 20
+top_pathways <- c()
+
+for (dataset_name in names(result)) {
+  direction_col <- paste0("Direction.", dataset_name)
+  fdr_col <- paste0("FDR.", dataset_name)
+  
+  pathways_up <- pathway_result[pathway_result[, direction_col] == "Up", ]
+  pathways_up <- pathways_up[order(pathways_up[, fdr_col], decreasing = F), ]
+  pathways_up <- pathways_up[pathways_up[, fdr_col] <= min_p, ]
+  
+  pathways_down <- pathway_result[pathway_result[, direction_col] == "Down", ]
+  pathways_down <- pathways_down[order(pathways_down[, fdr_col], decreasing = F), ]
+  pathways_down <- pathways_down[pathways_down[, fdr_col] <= min_p, ]
+  
+  top_pathways <- c(top_pathways, rownames(pathways_up)[1:top_n], rownames(pathways_down)[1:top_n])
+}
+
+top_pathways <- unique(top_pathways)
+
+# test if the regulation is the same or not
+has_same_regulation <- sapply(top_pathways, function(pathway) {
+  dataset_names <- names(result)
+  is_sig <- as.logical( pathway_result[pathway, paste0("sig.", dataset_names)] )
+  direction <- as.character( pathway_result[pathway, paste0("Direction.", dataset_names)] )
+  
+  sig_direction <- direction[is_sig]
+  
+  # check all show the same direction
+  return(length(unique(sig_direction)) == 1)
+})
+
+# increase the line-spacing for tables
+cat("\\renewcommand{\\arraystretch}{1.4}\n")
+
+if (n_datasets > 1) {
+  cat("# Similar regulated pathways\n\n")
+  
+  cat("Pathways that show the same direction on all of the datasets. The direction of regulation is only assessed for significantly regulated pathways.\n\n")
+  
+  create_pathway_table(top_pathways[has_same_regulation])
+  
+  cat("# Differently regulated pathways\n\n")
+  
+  create_pathway_table(top_pathways[!has_same_regulation])
+} else {
+  cat("# Top-regulated pathways\n\n")
+  create_pathway_table(top_pathways)
+}
+```
+
+# Protein / Gene level results
+
+Classical differential expression analysis performed on the genes / proteins of every dataset. 
+
+**Note:** Depending on the gene set analysis method used, the approach used to assess differential expression at the gene / protein level may vary to the approach used
+for the pathway level.
+
+```{r volcano_plots, fig.width=6, fig.height=n_2_rows * 3}
+# create volcano plots for every dataset
+plot_data <- data.frame()
+
+for (dataset_name in names(result)) {
+  dataset_fc <- get_result(result, "fold_changes", dataset_name)
+  dataset_fc$dataset <- dataset_name
+  
+  plot_data <- rbind(plot_data, dataset_fc)
+}
+
+library(ggplot2)
+ggplot(plot_data, aes(x = logFC, y = -log10(adj.P.Val))) +
+  geom_point() +
+  facet_wrap(~ dataset, ncol=2, scales = "free") +
+  geom_hline(yintercept = -log10(0.05), color = my_colors[3], linetype = 2) +
+  geom_hline(yintercept = -log10(0.01), color = my_colors[1], linetype = 2) +
+  my_theme()
+```
+
+## Top up-regulated protein/genes
+
+```{r top_up_genes, results="asis"}
+
+for (dataset_name in names(result)) {
+  cat("### ", dataset_name, "\n\n", sep = "")
+  dataset_fc <- get_result(result, "fold_changes", dataset_name)
+  dataset_up <- dataset_fc[dataset_fc$logFC > 0, ]
+  dataset_up <- dataset_up[order(dataset_up$adj.P.Val, decreasing = F), ]
+  
+  print(knitr::kable(dataset_up[1:10, ], row.names = F))
+  
+  cat("\n\n")
+}
+
+```
+
+## Top down-regulated protein/genes
+
+```{r top_down_genes, results="asis"}
+
+for (dataset_name in names(result)) {
+  cat("### ", dataset_name, "\n\n", sep = "")
+  dataset_fc <- get_result(result, "fold_changes", dataset_name)
+  dataset_up <- dataset_fc[dataset_fc$logFC < 0, ]
+  dataset_up <- dataset_up[order(dataset_up$adj.P.Val, decreasing = F), ]
+  
+  print(knitr::kable(dataset_up[1:10, ], row.names = F))
+  
+  cat("\n\n")
+}
+
+```

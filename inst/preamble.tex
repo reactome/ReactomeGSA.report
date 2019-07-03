@@ -1,0 +1,54 @@
+\pretitle{\begin{flushleft}\Huge\sffamily\vspace{\droptitle}}
+\posttitle{\par\end{flushleft}}
+\predate{\begin{flushleft}\large\sffamily}
+\postdate{\par\end{flushleft}}
+
+\usepackage{multicol}
+%\usepackage{float}
+
+% replace longtable with xtab to use with columns
+\usepackage{xtab}
+\makeatletter
+\def\longtable{\@ifnextchar[\newlongtable@i \newlongtable@ii}
+\def\newlongtable@i[#1]{%
+\renewcommand{\endhead}{\ignorespaces}
+\xtabular[#1]}
+\def\newlongtable@ii{%
+\renewcommand{\endhead}{\ignorespaces}
+\xtabular}
+\def\endlongtable{\endxtabular}
+\makeatother
+
+% define own colors
+\usepackage{xcolor}
+\definecolor{highlight}{HTML}{00A0B0} % blue
+\definecolor{myyellow}{HTML}{EDC951}
+
+% change the title styles
+\usepackage{titlesec}
+\titleformat{\section}[hang]
+% format
+{\Large\sffamily}
+% label - sep - before code - after code
+{\thesection.}{}{}[\vspace{-1em}\textcolor{highlight}{\rule{\columnwidth}{1pt}}]
+
+\titleformat{\subsection}[hang]
+{\large\sffamily\bfseries}
+{\thesubsection.}{}{}[]
+
+\titlespacing{\section}{0pc}{0.3em}{0.5pc}
+\titlespacing{\subsection}{0pc}{0.2em}{0.3pc}
+
+% special boxes
+\usepackage{fancybox}
+\newcommand\notebox[1]{
+  \fcolorbox{highlight}{white}{
+    \parbox{\columnwidth}{
+      \vspace{0.1em}
+      \textbf{\sffamily{Note}}
+      \vspace{0.1em}
+
+      #1
+    }
+  }
+}
