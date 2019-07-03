@@ -122,16 +122,14 @@ if (n_2_cols == 0) n_2_cols <- 2
 n_2_rows <- ceiling(n_datasets / 2)
 ```
 
-```{r pathway_volcano, fig.width=n_2_cols*3, fig.height=n_2_rows*3}
+```{r pathway_volcano, fig.width=3, fig.height=3}
 library(ggplot2)
 plot_objs <- list()
 
 for (dataset_name in names(result)) {
   plot_obj <- plot_volcano(result, dataset = dataset_name)
-  plot_objs[[length(plot_objs) + 1]] <- plot_obj
+  print(plot_obj)
 }
-
-plot_grid(plotlist = plot_objs, ncol = 2)
 ```
 
 These volcano plots summarize the pathway results for every dataset. Every point is one pathway. The x-axis represents the average fold-change of all genes / proteins within that pathway. The y-axis represents the p-value where "higher" values are more significant (-log10 transformation). The red line represents p = 0.05, and the blue line p = 0.01.
