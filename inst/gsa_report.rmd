@@ -27,7 +27,7 @@ min_p <- 0.05
 result <- params$result
 
 if (class(result) == "character") {
-  result <- readRDS("../test_result.rds")
+  result <- readRDS("padog_result.rds")
 }
 
 pathway_result <- pathways(result, p = min_p)
@@ -224,15 +224,23 @@ for (dataset_name in names(result)) {
   direction_col <- paste0("Direction.", dataset_name)
   fdr_col <- paste0("FDR.", dataset_name)
   
-  pathways_up <- pathway_result[pathway_result[, direction_col] == "Up", ]
+  pathways_up <- pathway_result[pathway_result[, direction_col] == "Up" & !is.na(pathway_result[, direction_col]), ]
   pathways_up <- pathways_up[order(pathways_up[, fdr_col], decreasing = F), ]
   pathways_up <- pathways_up[pathways_up[, fdr_col] <= min_p, ]
   
-  pathways_down <- pathway_result[pathway_result[, direction_col] == "Down", ]
+  pathways_down <- pathway_result[pathway_result[, direction_col] == "Down" & !is.na(pathway_result[, direction_col]), ]
   pathways_down <- pathways_down[order(pathways_down[, fdr_col], decreasing = F), ]
   pathways_down <- pathways_down[pathways_down[, fdr_col] <= min_p, ]
   
-  top_pathways <- c(top_pathways, rownames(pathways_up)[1:top_n], rownames(pathways_down)[1:top_n])
+  if (nrow(pathways_up) > 0) {
+    pathways_to_add <- ifelse(nrow(pathways_up) > top_n, top_n, nrow(pathways_up))
+    top_pathways <- c(top_pathways, rownames(pathways_up)[1:pathways_to_add])  
+  }
+  
+  if (nrow(pathways_down) > 0) {
+    pathways_to_add <- ifelse(nrow(pathways_down) > top_n, top_n, nrow(pathways_down))
+    top_pathways <- c(top_pathways, rownames(pathways_down)[1:pathways_to_add])  
+  }
 }
 
 top_pathways <- unique(top_pathways)
@@ -253,15 +261,19 @@ has_same_regulation <- sapply(top_pathways, function(pathway) {
 cat("\\renewcommand{\\arraystretch}{1.4}\n")
 
 if (n_datasets > 1) {
-  cat("# Similar regulated pathways\n\n")
+  if (sum(has_same_regulation) > 0) {
+    cat("# Similar regulated pathways\n\n")
+    
+    cat("Pathways that show the same direction on all of the datasets. The direction of regulation is only assessed for significantly regulated pathways.\n\n")
+    
+    create_pathway_table(top_pathways[has_same_regulation])
+  }
   
-  cat("Pathways that show the same direction on all of the datasets. The direction of regulation is only assessed for significantly regulated pathways.\n\n")
-  
-  create_pathway_table(top_pathways[has_same_regulation])
-  
-  cat("# Differently regulated pathways\n\n")
-  
-  create_pathway_table(top_pathways[!has_same_regulation])
+  if (sum(!has_same_regulation) > 0) {
+    cat("# Differently regulated pathways\n\n")
+    
+    create_pathway_table(top_pathways[!has_same_regulation])
+  }
 } else {
   cat("# Top-regulated pathways\n\n")
   create_pathway_table(top_pathways)
