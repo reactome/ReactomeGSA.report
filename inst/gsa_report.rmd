@@ -145,7 +145,7 @@ if (n_datasets > 1) {
 
 ```{r pathway_correlation, fig.width=5, fig.height=3}
 if (n_datasets > 1) {
-  plot_objs <- plot_correlations(result)
+  suppressMessages(plot_objs <- plot_correlations(result))
   
   for (plot_obj in plot_objs) {
     print(plot_obj + my_theme())

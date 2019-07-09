@@ -30,14 +30,18 @@
 % format
 {\Large\sffamily}
 % label - sep - before code - after code
-{\thesection.}{}{}[\vspace{-1em}\textcolor{highlight}{\rule{\columnwidth}{1pt}}]
+{\thesection.}{}{}[\vspace{-18pt}\textcolor{highlight}{\rule{\columnwidth}{1pt}}]
 
 \titleformat{\subsection}[hang]
 {\large\sffamily\bfseries}
 {\thesubsection.}{}{}[]
 
-\titlespacing{\section}{0pc}{0.3em}{0.5pc}
-\titlespacing{\subsection}{0pc}{0.2em}{0.3pc}
+% prevent increased vertical spaces on first page
+\raggedbottom
+
+% \titlespacing*{<command>}{<left>}{<before-sep>}{<after-sep>}
+\titlespacing{\section}{0pc}{5mm}{0mm}
+\titlespacing{\subsection}{0pc}{5mm}{0mm}
 
 % special boxes
 \usepackage{fancybox}
