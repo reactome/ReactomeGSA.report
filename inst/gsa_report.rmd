@@ -201,7 +201,7 @@ create_pathway_table <- function(pathways) {
     cat("\\textbf{", pathway_result[pathway, "Name"], " (", pathway, ")} \n", sep = "")
     
     cat("\\begin{tabular}{ l", rep(" | c", n_datasets), " }\n")
-    cat(" & ", paste(names(result), collapse = " & "), "\\\\\n")
+    cat(" & ", paste(gsub("_", "\\\\_", names(result)), collapse = " & "), "\\\\\n")
     cat("\\hline\n")
     cat("Regulation & ", pathway_field_string(pathway, "Direction."), "\\\\\n")
     cat("FDR & ", pathway_field_string(pathway, "FDR.", T), "\\\\\n")
