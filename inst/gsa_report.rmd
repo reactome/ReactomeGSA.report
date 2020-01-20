@@ -3,6 +3,8 @@ title: "Reactome Analysis Result"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 params:
   result: "None"
+  include_disease: "NA"
+  include_interactors: "NA"
 output:
   pdf_document:
     toc: false
@@ -65,7 +67,22 @@ In this reports, pathways found differentially expressed at an adjusted p-values
 
 # Analysis Overview
 
-Number of datasets analysed: **`r length(names(result))`**
+```{r, results="asis"}
+# Basic information about the settings used
+
+cat("  * Number of datasets analysed: ", length(names(result)), "\n", sep = "")
+cat("  * Reactome version: ", result@reactome_release, "\n", sep = "")
+
+if (!is.na(include_disease)) {
+  disease_string = ifelse(include_disease, "", "**not**")
+  cat("* Disease pathways were ", disease_string, " included\n", sep = "")
+}
+
+if (!is.na(include_interactors)) {
+  interactor_string = ifelse(include_interactors, "", "**not**")
+  cat("* Protein-protein interactors were ", interactor_string, " added\n", sep = "")
+}
+```
 
 ```{r, results="asis"}
 for (dataset_name in names(result)) {
