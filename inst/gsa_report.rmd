@@ -215,7 +215,9 @@ create_pathway_table <- function(pathways) {
   n_datasets <- length(names(result))
 
   for (pathway in pathways) {
-    cat("\\textbf{", pathway_result[pathway, "Name"], " (", pathway, ")} \n", sep = "")
+    # get a save pathway name
+    save_name <- gsub("&", "\\\\&", pathway_result[pathway, "Name"])[[1]]
+    cat("\\textbf{", save_name, " (", pathway, ")} \n", sep = "")
     
     cat("\\begin{tabular}{ l", rep(" | c", n_datasets), " }\n")
     cat(" & ", paste(gsub("_", "\\\\_", names(result)), collapse = " & "), "\\\\\n")
