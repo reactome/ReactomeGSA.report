@@ -1,0 +1,145 @@
+---
+title: "Reactome Analysis Result"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+params:
+  result: "None"
+  include_disease: "NA"
+  include_interactors: "NA"
+output:
+  pdf_document:
+    toc: false
+    toc_depth: 2
+    number_sections: false
+    includes:
+      in_header: "preamble.tex"
+    keep_tex: false
+    latex_engine: xelatex
+subparagraph: yes
+classoption: onecolumn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, error = FALSE, fig.pos = 'H', fig.align = "center")
+library(ReactomeGSA)
+suppressPackageStartupMessages( library(ggplot2) )
+library(cowplot)
+
+min_p <- 0.05
+
+result <- params$result
+
+if (class(result) == "character") {
+  result <- readRDS("/home/jg/Projects/reactome/ReactomeGSA.report/gsva_result.rds")
+}
+
+pathway_result <- pathways(result, p = min_p)
+n_datasets <- length(names(result))
+
+my_colors <- c("#00A0B0", "#6A4A3C", "#CC333F", "#EB6841", "#EDC951")
+my_colors_light <- c("#A1E5ED", "#C49D8C", "#EB9EA5", "#F8AE97", "#F6E4A8")
+
+# theme for all figures
+my_theme <- function(base_size = 12, base_family = "", flip_axis = F) {
+    flip_axis_theme <- theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    res <- theme_bw(base_size=base_size, base_family=base_family) %+replace% 
+    theme(strip.background = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(), 
+          axis.line = element_line(colour = "#333333")
+    )
+    
+    if (flip_axis) {
+        res <- res + flip_axis_theme
+    }
+    
+    return(res)
+}
+```
+
+# Introduction
+
+This report summarizes the pathway analysis result created by the **Reactome Analysis Service**. For more information, visit
+https://www.reactome.org.
+
+This report summarizes the result of a gene set variation analysis (currently the "ssGSEA" method).
+
+# Analysis Overview
+
+```{r basic_info, results="asis"}
+# Basic information about the settings used
+
+cat("  * Number of datasets analysed: ", length(names(result)), "\n", sep = "")
+cat("  * Reactome version: ", result@reactome_release, "\n", sep = "")
+
+if (!is.na(include_disease)) {
+  disease_string = ifelse(include_disease, "", "**not**")
+  cat("  * Disease pathways were ", disease_string, " included\n", sep = "")
+}
+
+if (!is.na(include_interactors)) {
+  interactor_string = ifelse(include_interactors, "", "**not**")
+  cat("  * Protein-protein interactors were ", interactor_string, " added\n", sep = "")
+}
+```
+
+## Dataset summaries
+
+```{r basic_dataset_info, results="asis"}
+for (dataset_name in names(result)) {
+  cat("**", dataset_name, ":**\n", sep = "")
+  cat("\n  * ", nrow(get_result(result, "pathways", dataset_name)), " pathways\n", sep = "")
+}
+
+cat("\n")
+```
+
+# Pathway overview
+
+```{r}
+top_pathways <- 30
+```
+
+These plot's only show the top-`r top_pathways` most different pathways in every dataset.
+
+```{r pathway_heatmaps, results="asis"}
+for (dataset_name in names(result)) {
+  pathway_expression <- get_result(result, "pathways", dataset_name)
+  
+  # find the maximum differently expressed pathway
+  max_difference <- do.call(rbind, apply(pathway_expression, 1, function(row) {
+      values <- as.numeric(row[3:length(row)])
+      return(data.frame(name = row[1], min = min(values), max = max(values)))
+  }))
+  
+  max_difference$diff <- max_difference$max - max_difference$min
+  
+  # sort based on the difference
+  max_difference <- max_difference[order(max_difference$diff, decreasing = T), ]
+  
+  top_pathway_ids <- max_difference[1:top_pathways, "name"]
+  
+  cat("## Top pathways in ", dataset_name, "\n")
+  
+  plot_gsva_heatmap(object = result, pathway_ids = top_pathway_ids, truncate_names = T, 
+                    dendrogram = "none", Rowv = F, scale = "row", key = F, 
+                    rowsep = 1:length(top_pathway_ids), colsep = 1:13, sepcolor = "black", sepwidth = c(0.01, 0.0001),
+                    lwid=c(0.1,4), lhei = c(0.1, 4))
+}
+```
+
+# Pathway expression
+
+These plots display the pathway-level expression values for the `r top_pathways` most different pathways per dataset.
+
+```{r top_pathway_expressions, results="asis", fig.height=4}
+for (dataset_name in names(result)) {
+  cat("## Top pathways in ", dataset_name, "\n")
+  
+  for (pathway_id in top_pathway_ids) {
+    plot_obj <- ReactomeGSA::plot_gsva_pathway(result, pathway_id)
+    print(plot_obj)
+  }
+}
+```
