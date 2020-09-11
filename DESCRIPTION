@@ -1,7 +1,7 @@
 Package: ReactomeGSA.report
 Type: Package
 Title: Report generating features for the ReactomeGSA Pathway Analysis tool
-Version: 0.1.5
+Version: 0.1.6
 Authors@R: person("Johannes", "Griss", email = "johannes.griss@meduniwien.ac.at", role = c("aut", "cre"))
 Description: The ReactomeGSA.report package contains functions to create well formatted reports based on the
     pathway analysis results retrieved by the ReactomeGSA package.

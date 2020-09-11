@@ -63,7 +63,7 @@ my_theme <- function(base_size = 12, base_family = "", flip_axis = F) {
 This report summarizes the pathway analysis result created by the **Reactome Analysis Service**. For more information, visit
 https://www.reactome.org.
 
-In this reports, pathways found differentially expressed at an adjusted p-values <= `r cat(min_p)` are considered to be significantly regulated.
+In this reports, pathways found differentially expressed at an adjusted p-value <= `r min_p` are considered to be significantly regulated.
 
 # Analysis Overview
 
