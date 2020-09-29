@@ -90,9 +90,8 @@ if (!is.na(include_interactors)) {
 for (dataset_name in names(result)) {
   cat("**", dataset_name, ":**\n", sep = "")
   cat("\n  * ", nrow(get_result(result, "pathways", dataset_name)), " pathways\n", sep = "")
+  cat("\n")
 }
-
-cat("\n")
 ```
 
 # Pathway overview
@@ -104,6 +103,9 @@ top_pathways <- 30
 These plot's only show the top-`r top_pathways` most different pathways in every dataset.
 
 ```{r pathway_heatmaps, results="asis"}
+# get the top pathways per dataset
+top_pathway_ids <- list()
+
 for (dataset_name in names(result)) {
   pathway_expression <- get_result(result, "pathways", dataset_name)
   
@@ -118,11 +120,14 @@ for (dataset_name in names(result)) {
   # sort based on the difference
   max_difference <- max_difference[order(max_difference$diff, decreasing = T), ]
   
-  top_pathway_ids <- max_difference[1:top_pathways, "name"]
-  
+  top_pathway_ids[[dataset_name]] <- max_difference[1:top_pathways, "name"]
+}
+ 
+# create the dataset specific plots
+for (dataset_name in names(result)) {
   cat("## Top pathways in ", dataset_name, "\n")
   
-  plot_gsva_heatmap(object = result, pathway_ids = top_pathway_ids, truncate_names = T, 
+  plot_gsva_heatmap(object = result, pathway_ids = top_pathway_ids[[dataset_name]], truncate_names = T, 
                     dendrogram = "none", Rowv = F, scale = "row", key = F, 
                     rowsep = 1:length(top_pathway_ids), colsep = 1:13, sepcolor = "black", sepwidth = c(0.01, 0.0001),
                     lwid=c(0.1,4), lhei = c(0.1, 4))
@@ -137,7 +142,9 @@ These plots display the pathway-level expression values for the `r top_pathways`
 for (dataset_name in names(result)) {
   cat("## Top pathways in ", dataset_name, "\n")
   
-  for (pathway_id in top_pathway_ids) {
+  pathway_ids <- top_pathway_ids[[dataset_name]]
+  
+  for (pathway_id in pathway_ids) {
     plot_obj <- ReactomeGSA::plot_gsva_pathway(result, pathway_id)
     print(plot_obj)
   }
