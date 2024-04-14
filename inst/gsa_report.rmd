@@ -15,7 +15,6 @@ output:
     keep_tex: false
     latex_engine: xelatex
 subparagraph: yes
-classoption: twocolumn
 ---
 
 ```{r setup, include=FALSE}
@@ -171,8 +170,6 @@ if (n_datasets > 1) {
   }
 }
 ```
-
-\onecolumn
 
 ```{r direction_of_regulation, results="asis"}
 

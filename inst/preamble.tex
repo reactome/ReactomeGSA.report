@@ -8,19 +8,6 @@
 \usepackage{multicol}
 %\usepackage{float}
 
-% replace longtable with xtab to use with columns
-\usepackage{xtab}
-\makeatletter
-\def\longtable{\@ifnextchar[\newlongtable@i \newlongtable@ii}
-\def\newlongtable@i[#1]{%
-\renewcommand{\endhead}{\ignorespaces}
-\xtabular[#1]}
-\def\newlongtable@ii{%
-\renewcommand{\endhead}{\ignorespaces}
-\xtabular}
-\def\endlongtable{\endxtabular}
-\makeatother
-
 % define own colors
 \usepackage{xcolor}
 \definecolor{highlight}{HTML}{00A0B0} % blue
